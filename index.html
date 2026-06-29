@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Peptides">
+<meta name="theme-color" content="#0f1115">
+<title>Peptide Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --line:#2a2f3a;
+    --txt:#e8eaed; --txt2:#9aa1ad; --txt3:#6b7280;
+    --nad:#3b82f6; --ghk:#d97706; --reta:#8b5cf6;
+    --ok:#22c55e; --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f5f7; --panel:#ffffff; --panel2:#f0f2f5; --line:#e3e6ea;
+      --txt:#1a1d23; --txt2:#5b626d; --txt3:#9aa1ad; }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; padding:max(env(safe-area-inset-top),14px) 14px calc(env(safe-area-inset-bottom) + 40px);}
+  .wrap{max-width:760px; margin:0 auto;}
+  header{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:4px 2px 16px;}
+  h1{font-size:20px; font-weight:600; margin:0; letter-spacing:-.01em;}
+  .sub{font-size:13px; color:var(--txt2);}
+  h2{font-size:15px; font-weight:600; margin:24px 2px 10px; letter-spacing:-.01em;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px;}
+  .muted{color:var(--txt2); font-size:13px;}
+
+  /* today */
+  #todayList{display:flex; flex-direction:column; gap:10px;}
+  .dose{display:flex; align-items:center; gap:13px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer; user-select:none;
+    transition:border-color .15s, opacity .15s;}
+  .dose:active{transform:scale(.995);}
+  .dot{width:11px; height:11px; border-radius:50%; flex:none;}
+  .dose .info{flex:1; min-width:0;}
+  .dose .nm{font-size:15px; font-weight:600;}
+  .dose .dt{font-size:12.5px; color:var(--txt2);}
+  .dose .amt{font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .check{width:24px; height:24px; border-radius:50%; border:2px solid var(--line); flex:none;
+    display:grid; place-items:center; color:#fff; font-size:14px;}
+  .dose.done{opacity:.55;}
+  .dose.done .check{background:var(--ok); border-color:var(--ok);}
+  .dose.done .nm{text-decoration:line-through;}
+  .restday{text-align:center; padding:18px 0; color:var(--txt2); font-size:14px;}
+
+  /* weekly */
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{padding:9px 8px; text-align:left; border-bottom:1px solid var(--line);}
+  th{font-weight:600; color:var(--txt2); font-size:12px;}
+  td.day{font-weight:600; white-space:nowrap;}
+  tr.today td{background:var(--panel2);}
+  .pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap;}
+  .dash{color:var(--txt3);}
+
+  /* syringes */
+  #syr{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  @media(max-width:560px){ #syr{grid-template-columns:1fr;} }
+  .syrcard{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 8px; text-align:center;}
+  .syrcard .t{font-size:14px; font-weight:600;}
+  .syrcard .s{font-size:11.5px; color:var(--txt2); margin-bottom:4px;}
+  .syrcard svg{width:100%; max-width:230px;}
+
+  /* buttons */
+  .btnrow{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;}
+  button.act{appearance:none; border:1px solid var(--line); background:var(--panel2); color:var(--txt);
+    font-size:14px; font-weight:600; padding:11px 16px; border-radius:12px; cursor:pointer; flex:1; min-width:150px;}
+  button.act.primary{background:var(--nad); border-color:var(--nad); color:#fff;}
+  button.act:active{transform:scale(.99);}
+  .note{font-size:12.5px; color:var(--txt2); margin-top:10px; line-height:1.55;}
+
+  details{margin-top:10px;}
+  summary{cursor:pointer; font-size:14px; font-weight:600; padding:6px 0;}
+  .recon{font-size:13px; color:var(--txt2);}
+  .recon b{color:var(--txt);}
+  .setting{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--txt2); margin-top:12px;}
+  input[type=date]{background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+    border-radius:9px; padding:7px 9px; font-size:13px;}
+  .wk{font-size:12px; color:var(--txt2);}
+  .safety{font-size:12px; color:var(--txt3); margin-top:22px; text-align:center; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Peptide Tracker</h1>
+      <div class="sub" id="dateLine"></div>
+    </div>
+    <div class="sub wk" id="weekBadge"></div>
+  </header>
+
+  <div class="card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
+      <strong style="font-size:15px;">Today</strong>
+      <span class="muted" id="todaySummary"></span>
+    </div>
+    <div id="todayList"></div>
+  </div>
+
+  <h2>This week</h2>
+  <div class="card" style="padding:6px 10px;">
+    <table id="weekTable"></table>
+  </div>
+
+  <h2>Fill-to lines</h2>
+  <div id="syr"></div>
+  <div class="card" style="margin-top:10px;">
+    <div class="muted">U-100 syringe &mdash; 1 unit = 0.01 mL. Fill the liquid column from the needle down to the colored line. Dashed line = week-3 step-up.</div>
+  </div>
+
+  <h2>Reminders</h2>
+  <div class="card">
+    <div class="muted" style="margin-bottom:12px;">Add recurring alarms to your phone's calendar. NAD+ &amp; GHK-Cu alert at <b id="amLabel">9:00 AM</b>; Retatrutide alerts in the evening (PM / fasted).</div>
+    <div class="btnrow">
+      <button class="act primary" id="icsBtn">⬇︎ Add to Calendar (.ics)</button>
+      <button class="act" id="notifyBtn">🔔 Browser reminders</button>
+    </div>
+    <div class="note" id="reminderNote">Calendar = reliable native phone alerts (works offline, no app open needed). Browser reminders only fire while this page is open.</div>
+    <div class="setting">
+      Program start (Mon):
+      <input type="date" id="startDate" value="2026-06-29">
+      <span class="wk" id="startNote"></span>
+    </div>
+  </div>
+
+  <details class="card" style="margin-top:14px;">
+    <summary>Reconstitution &amp; dosing reference</summary>
+    <div class="recon" style="margin-top:8px;">
+      <p><b style="color:var(--nad)">NAD+</b> — 1000&nbsp;mg vial + 5&nbsp;mL (500&nbsp;u) BAC → <b>200&nbsp;mg/mL · 2&nbsp;mg per unit</b>. SubQ, AM/early afternoon. Mon/Wed/Fri. 25&nbsp;u (50&nbsp;mg) wks 1–2 → 50&nbsp;u (100&nbsp;mg) wk 3+. Refrigerate.</p>
+      <p><b style="color:var(--ghk)">GHK-Cu</b> — 100&nbsp;mg vial + 3&nbsp;mL (300&nbsp;u) BAC → <b>33.3&nbsp;mg/mL · 0.333&nbsp;mg per unit</b>. SubQ, any time, consistency over timing. Mon–Fri. 5&nbsp;u (1.67&nbsp;mg) wks 1–2 → 10&nbsp;u (3.33&nbsp;mg) wk 3+. Refrigerate.</p>
+      <p><b style="color:var(--reta)">Retatrutide</b> — 30&nbsp;mg vial + 3&nbsp;mL (300&nbsp;u) BAC → <b>10&nbsp;mg/mL · 0.1&nbsp;mg per unit</b>. SubQ belly, PM/fasted. 0.5&nbsp;mg (5&nbsp;u) twice weekly Mon + Thu (1&nbsp;mg/week total, split to flatten the peak). ~6-day half-life so levels stay steady.</p>
+    </div>
+  </details>
+
+  <div class="safety">
+    Self-directed / educational use only — not medical advice.<br>
+    Doses titrate by body response. Don't double up on a missed dose; resume at the next scheduled time.
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var NAD="#3b82f6", GHK="#d97706", RETA="#8b5cf6";
+  var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var LS=window.localStorage;
+
+  // ---------- program / week logic ----------
+  function getStart(){
+    var v=LS.getItem("startDate")||"2026-06-29";
+    document.getElementById("startDate").value=v;
+    return v;
+  }
+  function parseLocal(d){ var p=d.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function weekNumber(date){
+    var s=parseLocal(getStart());
+    var diff=Math.floor((stripTime(date)-stripTime(s))/86400000);
+    if(diff<0) return 0;             // before program start
+    return Math.floor(diff/7)+1;     // 1-based
+  }
+  function stripTime(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(); }
+
+  // dose for a peptide given week (week 0 = not started yet -> use wk1 dose as preview)
+  function nadUnits(wk){ return wk>=3?50:25; }
+  function ghkUnits(wk){ return wk>=3?10:5; }
+  function nadMg(wk){ return nadUnits(wk)*2; }
+  function ghkMg(wk){ return (ghkUnits(wk)*0.3333).toFixed(2); }
+
+  // which peptides on a given weekday index (0=Sun..6=Sat)
+  function dueOn(dowIdx, wk){
+    var out=[];
+    var nadDays=[1,3,5], ghkDays=[1,2,3,4,5], retaDays=[1,4];
+    if(nadDays.indexOf(dowIdx)>=0) out.push({key:"NAD+", color:NAD, units:nadUnits(wk), label:nadUnits(wk)+" u", sub:nadMg(wk)+" mg · AM", time:"AM"});
+    if(ghkDays.indexOf(dowIdx)>=0) out.push({key:"GHK-Cu", color:GHK, units:ghkUnits(wk), label:ghkUnits(wk)+" u", sub:ghkMg(wk)+" mg · any time", time:"any"});
+    if(retaDays.indexOf(dowIdx)>=0) out.push({key:"Retatrutide", color:RETA, units:5, label:"5 u", sub:"0.5 mg · PM fasted", time:"PM"});
+    return out;
+  }
+
+  // ---------- date header ----------
+  var now=new Date();
+  var fmt=now.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
+  document.getElementById("dateLine").textContent=fmt;
+  function refreshWeekBadge(){
+    var wk=weekNumber(now);
+    var b=document.getElementById("weekBadge");
+    if(wk<=0){ b.textContent="starts "+parseLocal(getStart()).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
+    else { b.textContent="Week "+wk+(wk>=3?" · full dose":" · ramp dose"); }
+    document.getElementById("startNote").textContent = wk<=0?"(program not started yet)":("week "+wk);
+  }
+
+  // ---------- today ----------
+  function todayKey(){ return "log-"+now.toISOString().slice(0,10); }
+  function getLog(){ try{return JSON.parse(LS.getItem(todayKey())||"{}");}catch(e){return {};} }
+  function setLog(o){ LS.setItem(todayKey(), JSON.stringify(o)); }
+
+  function renderToday(){
+    var wk=weekNumber(now);
+    var due=dueOn(now.getDay(), wk<=0?1:wk);
+    var list=document.getElementById("todayList");
+    var summ=document.getElementById("todaySummary");
+    list.innerHTML="";
+    if(due.length===0){
+      list.innerHTML='<div class="restday">🌙 Rest day — nothing scheduled. Enjoy it.</div>';
+      summ.textContent="";
+      return;
+    }
+    var log=getLog();
+    var doneCount=0;
+    due.forEach(function(d){
+      var done=!!log[d.key];
+      if(done) doneCount++;
+      var el=document.createElement("div");
+      el.className="dose"+(done?" done":"");
+      el.innerHTML=
+        '<span class="dot" style="background:'+d.color+'"></span>'+
+        '<div class="info"><div class="nm">'+d.key+'</div><div class="dt">'+d.sub+'</div></div>'+
+        '<div class="amt" style="color:'+d.color+'">'+d.label+'</div>'+
+        '<div class="check">'+(done?'✓':'')+'</div>';
+      el.addEventListener("click", function(){
+        var l=getLog(); if(l[d.key]) delete l[d.key]; else l[d.key]=Date.now();
+        setLog(l); renderToday();
+      });
+      list.appendChild(el);
+    });
+    summ.textContent=doneCount+"/"+due.length+" logged";
+  }
+
+  // ---------- weekly table ----------
+  function renderWeek(){
+    var wk=weekNumber(now); if(wk<=0) wk=1;
+    var t=document.getElementById("weekTable");
+    t.innerHTML="<thead><tr><th>Day</th><th style='color:"+NAD+"'>NAD+</th><th style='color:"+GHK+"'>GHK-Cu</th><th style='color:"+RETA+"'>Reta</th></tr></thead>";
+    var tb=document.createElement("tbody");
+    var order=[1,2,3,4,5,6,0];
+    order.forEach(function(idx){
+      var due=dueOn(idx, wk);
+      var map={}; due.forEach(function(d){ map[d.key]=d; });
+      var tr=document.createElement("tr");
+      if(idx===now.getDay()) tr.className="today";
+      function cell(key,color){
+        var d=map[key];
+        return d?('<span class="pill" style="background:'+color+'22;color:'+color+'">'+d.label+'</span>'):'<span class="dash">—</span>';
+      }
+      tr.innerHTML="<td class='day'>"+DOW[idx]+"</td><td>"+cell("NAD+",NAD)+"</td><td>"+cell("GHK-Cu",GHK)+"</td><td>"+cell("Retatrutide",RETA)+"</td>";
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+  }
+
+  // ---------- syringes ----------
+  var y0=58, ppu=2.6, bx=63, bw=44, bxr=bx+bw;
+  function ty(u){ return y0+ppu*u; }
+  function syringeSVG(color, marks){
+    var doseY=ty(marks[0].u), s='';
+    s+='<svg viewBox="0 0 210 384">';
+    s+='<line x1="85" y1="'+doseY+'" x2="85" y2="362" stroke="var(--txt2)" stroke-width="3" stroke-linecap="round"/>';
+    s+='<rect x="68" y="360" width="34" height="7" rx="2" fill="var(--txt2)"/>';
+    s+='<line x1="85" y1="8" x2="85" y2="34" stroke="#9aa0a6" stroke-width="1.6"/>';
+    s+='<rect x="77" y="34" width="16" height="16" rx="2" fill="#f97316"/>';
+    s+='<rect x="'+(bx+2)+'" y="'+y0+'" width="'+(bw-4)+'" height="'+(doseY-y0)+'" fill="'+color+'" opacity="0.80"/>';
+    s+='<rect x="'+bx+'" y="'+(doseY-4)+'" width="'+bw+'" height="9" rx="2" fill="#f97316"/>';
+    s+='<rect x="'+bx+'" y="48" width="'+bw+'" height="274" rx="7" fill="none" stroke="var(--txt)" stroke-width="2"/>';
+    for(var u=10;u<=100;u+=10){
+      var yy=ty(u);
+      s+='<line x1="'+bx+'" y1="'+yy+'" x2="'+(bx+8)+'" y2="'+yy+'" stroke="var(--txt2)" stroke-width="1"/>';
+      s+='<text x="'+(bx-5)+'" y="'+(yy+3)+'" text-anchor="end" font-size="9" fill="var(--txt2)">'+u+'</text>';
+    }
+    marks.forEach(function(m){
+      var yy=ty(m.u);
+      s+='<line x1="'+bx+'" y1="'+yy+'" x2="'+bxr+'" y2="'+yy+'" stroke="'+color+'" stroke-width="2.5"'+(m.dashed?' stroke-dasharray="4 3"':'')+'/>';
+      s+='<line x1="'+bxr+'" y1="'+yy+'" x2="118" y2="'+yy+'" stroke="'+color+'" stroke-width="1" opacity="0.6"/>';
+      s+='<text x="122" y="'+(yy-1)+'" font-size="12" fill="'+color+'" font-weight="600">'+m.label+'</text>';
+      if(m.sub) s+='<text x="122" y="'+(yy+11)+'" font-size="9.5" fill="var(--txt2)">'+m.sub+'</text>';
+    });
+    s+='</svg>';
+    return s;
+  }
+  function renderSyringes(){
+    var defs=[
+      {name:"NAD+", color:NAD, sub:"Mon / Wed / Fri · AM",
+        marks:[{u:25,label:"25 u",sub:"50 mg · wks 1–2"},{u:50,label:"50 u",sub:"100 mg · wk 3+",dashed:true}]},
+      {name:"GHK-Cu", color:GHK, sub:"Mon–Fri · any time",
+        marks:[{u:5,label:"5 u",sub:"1.67 mg · wks 1–2"},{u:10,label:"10 u",sub:"3.33 mg · wk 3+",dashed:true}]},
+      {name:"Retatrutide", color:RETA, sub:"Mon + Thu · PM fasted",
+        marks:[{u:5,label:"5 u",sub:"0.5 mg × 2/wk"}]}
+    ];
+    var c=document.getElementById("syr"); c.innerHTML="";
+    defs.forEach(function(d){
+      var card=document.createElement("div"); card.className="syrcard";
+      card.innerHTML='<div class="t" style="color:'+d.color+'">'+d.name+'</div><div class="s">'+d.sub+'</div>'+syringeSVG(d.color,d.marks);
+      c.appendChild(card);
+    });
+  }
+
+  // ---------- .ics export ----------
+  function pad(n){ return (n<10?"0":"")+n; }
+  function icsDate(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"T"+pad(d.getHours())+pad(d.getMinutes())+"00"; }
+  function buildICS(){
+    var start=parseLocal(getStart()); // a Monday
+    function dtAt(h,m){ var d=new Date(start); d.setHours(h,m||0,0,0); return d; }
+    var stamp=icsDate(new Date());
+    var ev=[];
+    function vevent(uid,summary,desc,startDt,byday,trigger){
+      return ["BEGIN:VEVENT","UID:"+uid+"@peptide-tracker","DTSTAMP:"+stamp,
+        "DTSTART:"+icsDate(startDt),"DURATION:PT15M",
+        "RRULE:FREQ=WEEKLY;BYDAY="+byday,
+        "SUMMARY:"+summary,"DESCRIPTION:"+desc,
+        "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+summary,"TRIGGER:"+trigger,"END:VALARM",
+        "END:VEVENT"].join("\r\n");
+    }
+    ev.push(vevent("nad","💉 NAD+  (25–50 u, AM)","NAD+ SubQ. 25 u wks 1–2, 50 u wk 3+. Morning/early afternoon.",dtAt(9,0),"MO,WE,FR","PT0S"));
+    ev.push(vevent("ghk","💉 GHK-Cu  (5–10 u)","GHK-Cu SubQ. 5 u wks 1–2, 10 u wk 3+. Any time, consistency matters.",dtAt(9,5),"MO,TU,WE,TH,FR","PT0S"));
+    ev.push(vevent("reta","💉 Retatrutide  (0.5 mg / 5 u)","Retatrutide SubQ belly, PM/fasted. 0.5 mg twice weekly.",dtAt(20,0),"MO,TH","PT0S"));
+    var cal=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Peptide Tracker//EN","CALSCALE:GREGORIAN","METHOD:PUBLISH"]
+      .concat(ev).concat(["END:VCALENDAR"]).join("\r\n");
+    return cal;
+  }
+  document.getElementById("icsBtn").addEventListener("click", function(){
+    var blob=new Blob([buildICS()],{type:"text/calendar;charset=utf-8"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url; a.download="peptide-reminders.ics";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},1500);
+  });
+
+  // ---------- browser notifications (while open) ----------
+  var notifyBtn=document.getElementById("notifyBtn");
+  function notifState(){
+    if(!("Notification" in window)){ notifyBtn.textContent="🔔 Not supported"; notifyBtn.disabled=true; return; }
+    if(Notification.permission==="granted") notifyBtn.textContent="🔔 Reminders ON";
+  }
+  notifyBtn.addEventListener("click", function(){
+    if(!("Notification" in window)) return;
+    Notification.requestPermission().then(function(p){ notifState(); });
+  });
+  function checkNotify(){
+    if(!("Notification" in window) || Notification.permission!=="granted") return;
+    var d=new Date(); var wk=weekNumber(d); var due=dueOn(d.getDay(), wk<=0?1:wk);
+    due.forEach(function(x){
+      var fireH = x.time==="PM"?20:9;
+      if(d.getHours()===fireH && d.getMinutes()===0){
+        var k="notif-"+d.toISOString().slice(0,10)+"-"+x.key+"-"+fireH;
+        if(!LS.getItem(k)){ LS.setItem(k,"1"); new Notification("Peptide due: "+x.key, {body:x.label+" — "+x.sub}); }
+      }
+    });
+  }
+  setInterval(checkNotify, 30000);
+
+  // ---------- wire up ----------
+  document.getElementById("startDate").addEventListener("change", function(){
+    LS.setItem("startDate", this.value); refreshWeekBadge(); renderToday(); renderWeek();
+  });
+  getStart(); refreshWeekBadge(); renderToday(); renderWeek(); renderSyringes(); notifState();
+})();
+</script>
+</body>
+</html>
